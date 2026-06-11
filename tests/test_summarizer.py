@@ -63,6 +63,17 @@ def test_build_prompt_marks_news_candidates_as_untrusted_input():
     assert "??" in prompt
 
 
+def test_build_prompt_contains_readable_chinese_output_requirements():
+    prompt = build_prompt([news_item()], "2026-04-30", expanded_window=False, news_api_used=False)
+
+    assert "????" in prompt
+    assert "AI ??????" in prompt
+    assert "????" in prompt
+    assert "????" in prompt
+    assert "????" in prompt
+    assert "????" not in prompt
+
+
 def test_extract_output_text_reads_responses_output_content():
     data = {
         "output": [
@@ -201,8 +212,11 @@ def test_summarize_news_calls_chat_completions_api():
     assert captured["url"] == "https://models.github.ai/inference/chat/completions"
     assert captured["headers"]["Authorization"] == "Bearer ai-key"
     assert captured["json"]["model"] == "openai/gpt-4o-mini"
-    assert captured["json"]["messages"][0]["role"] == "user"
-    assert captured["json"]["messages"][0]["content"]
+    assert captured["json"]["messages"][0]["role"] == "system"
+    assert "????" in captured["json"]["messages"][0]["content"]
+    assert "????????" in captured["json"]["messages"][0]["content"]
+    assert captured["json"]["messages"][1]["role"] == "user"
+    assert captured["json"]["messages"][1]["content"]
     assert markdown == "# Daily AI News\n\n- Test"
 
 
