@@ -81,6 +81,16 @@ def test_daily_workflow_syncs_before_pushing_reports():
     assert "git push\n" not in workflow
 
 
+def test_daily_workflow_uses_github_models_free_default():
+    workflow = Path(".github/workflows/daily-ai-news.yml").read_text(encoding="utf-8")
+
+    assert "models: read" in workflow
+    assert "AI_API_KEY: ${{ secrets.GITHUB_TOKEN }}" in workflow
+    assert "AI_BASE_URL: https://models.github.ai/inference" in workflow
+    assert "AI_MODEL: openai/gpt-4o-mini" in workflow
+    assert "AI_API_STYLE: chat_completions" in workflow
+
+
 def test_daily_workflow_uses_node_24_compatible_actions():
     workflow = Path(".github/workflows/daily-ai-news.yml").read_text(encoding="utf-8")
 
