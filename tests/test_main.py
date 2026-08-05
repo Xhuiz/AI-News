@@ -10,6 +10,7 @@ from ai_news.config import AppConfig
 from ai_news import main as main_module
 from ai_news.main import report_context, run
 from ai_news.models import NewsItem
+from ai_news.summarizer import SummarizerError
 
 
 def config(dry_run=True):
@@ -111,6 +112,51 @@ def test_run_sends_email_when_not_dry_run(tmp_path):
 
     assert calls["email"] == 1
     assert summarize_calls == {"expanded_window": False, "news_api_used": True}
+
+
+def test_run_sends_fallback_report_when_ai_summary_fails(tmp_path, capsys):
+    calls = {}
+
+    def fake_fetch(_config):
+        return (
+            [
+                NewsItem(
+                    title="GitHub Models retirement brownout",
+                    url="https://example.com/github-models-brownout",
+                    source="Example",
+                    published_at=datetime(2026, 8, 4, 12, 0, tzinfo=timezone.utc),
+                    summary="GitHub Models returned 410 Gone.",
+                )
+            ],
+            {"news_api_used": False},
+        )
+
+    def fake_summarize(*args, **kwargs):
+        raise SummarizerError("github_models_retirement_brownout with ai-key")
+
+    def fake_send(_config, markdown, report_date):
+        calls["markdown"] = markdown
+        calls["report_date"] = report_date
+
+    path = run(
+        config(dry_run=False),
+        today=date(2026, 8, 4),
+        root=tmp_path,
+        fetch_news=fake_fetch,
+        summarize=fake_summarize,
+        send=fake_send,
+    )
+
+    captured = capsys.readouterr()
+    markdown = path.read_text(encoding="utf-8")
+    assert calls["report_date"] == "2026-08-04"
+    assert calls["markdown"] == markdown
+    assert "AI 新闻简报" in markdown
+    assert "自动模板" in markdown
+    assert "GitHub Models retirement brownout" in markdown
+    assert "https://example.com/github-models-brownout" in markdown
+    assert "AI 总结服务暂时不可用" in captured.err
+    assert "ai-key" not in captured.err
 
 
 def test_report_context_uses_beijing_date_and_utc_filter_anchor():
