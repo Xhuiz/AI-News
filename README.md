@@ -37,11 +37,11 @@
 
 | Secret | 是否必填 | 说明 |
 | --- | --- | --- |
-| `GEMINI_API_KEY` | 推荐必填 | Gemini API Key，GitHub Actions 会优先使用它 |
-| `AI_API_KEY` | 兼容备用 | 没有 `GEMINI_API_KEY` 时才使用这个通用模型 Key |
-| `AI_BASE_URL` | 本地运行可填 | AI 接口地址；GitHub Actions 默认使用 Gemini |
-| `AI_MODEL` | 本地运行可填 | 模型名称；GitHub Actions 默认使用 `gemini-3.6-flash` |
-| `AI_API_STYLE` | 本地运行可填 | Gemini 使用 `chat_completions` |
+| `ZHIPU_API_KEY` | 推荐必填 | 智谱 API Key，GitHub Actions 会优先使用它 |
+| `AI_API_KEY` | 兼容备用 | 没有 `ZHIPU_API_KEY` 时才使用这个通用模型 Key |
+| `AI_BASE_URL` | 本地运行可填 | AI 接口地址；GitHub Actions 默认使用智谱 |
+| `AI_MODEL` | 本地运行可填 | 模型名称；GitHub Actions 默认使用 `glm-4.7-flash` |
+| `AI_API_STYLE` | 本地运行可填 | 智谱使用 `chat_completions` |
 | `MAIL_HOST` | 建议填写 | 网易邮箱填 `smtp.163.com` |
 | `MAIL_PORT` | 建议填写 | 网易邮箱 SSL 端口填 `465` |
 | `MAIL_USERNAME` | 必填 | 发件网易邮箱 |
@@ -57,11 +57,11 @@
 
 `AI_BASE_URL` 是程序调用模型的接口地址，不是浏览器里的后台页面。
 
-GitHub Actions 现在默认使用 Gemini 免费模型：
+GitHub Actions 现在默认使用智谱免费模型：
 
 ```text
-AI_BASE_URL=https://generativelanguage.googleapis.com/v1beta/openai
-AI_MODEL=gemini-3.6-flash
+AI_BASE_URL=https://open.bigmodel.cn/api/paas/v4
+AI_MODEL=glm-4.7-flash
 AI_API_STYLE=chat_completions
 ```
 
