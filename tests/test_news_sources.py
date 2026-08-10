@@ -85,6 +85,78 @@ def test_rank_items_prioritizes_ai_trainer_relevant_keywords():
     ]
 
 
+def test_rank_items_prioritizes_us_ai_trio_before_other_sources():
+    items = [
+        item(
+            "New prompt engineering evaluation benchmark",
+            "https://example.com/eval",
+            source="Example AI News",
+            summary="LLM prompt safety alignment benchmark",
+        ),
+        item(
+            "Claude model update",
+            "https://example.com/claude",
+            source="Anthropic News",
+            summary="A short product update.",
+        ),
+        item(
+            "Gemini research note",
+            "https://example.com/gemini",
+            source="Example Wire",
+            summary="Google DeepMind shared a Gemini model note.",
+        ),
+        item(
+            "OpenAI safety update",
+            "https://example.com/openai",
+            source="OpenAI Blog",
+            summary="A short safety update.",
+        ),
+    ]
+
+    ranked = rank_items(items, limit=4)
+
+    assert [news.title for news in ranked][-1] == "New prompt engineering evaluation benchmark"
+    assert {news.title for news in ranked[:3]} == {
+        "Gemini research note",
+        "OpenAI safety update",
+        "Claude model update",
+    }
+
+
+def test_rank_items_keeps_trio_news_ordered_by_relevance_then_recency():
+    items = [
+        item(
+            "OpenAI company note",
+            "https://example.com/openai",
+            source="OpenAI Blog",
+            hours_old=1,
+            summary="A general update.",
+        ),
+        item(
+            "Anthropic evaluation benchmark",
+            "https://example.com/anthropic",
+            source="Anthropic News",
+            hours_old=5,
+            summary="Claude model safety evaluation benchmark.",
+        ),
+        item(
+            "Google DeepMind prompt guide",
+            "https://example.com/deepmind",
+            source="Google DeepMind Blog",
+            hours_old=2,
+            summary="Gemini prompt engineering guide.",
+        ),
+    ]
+
+    ranked = rank_items(items, limit=3)
+
+    assert [news.title for news in ranked] == [
+        "Anthropic evaluation benchmark",
+        "Google DeepMind prompt guide",
+        "OpenAI company note",
+    ]
+
+
 def test_rank_items_uses_word_boundaries_for_short_keywords():
     items = [
         item("Agency said team played against rivals", "https://example.com/sports", summary="not ai"),

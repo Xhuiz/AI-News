@@ -43,6 +43,17 @@ TRAINER_KEYWORDS = {
     "multimodal": 3,
     "agent": 3,
 }
+US_AI_TRIO_TERMS = {
+    "openai",
+    "chatgpt",
+    "gpt",
+    "google ai",
+    "google deepmind",
+    "deepmind",
+    "gemini",
+    "anthropic",
+    "claude",
+}
 
 _WORD_PATTERN = re.compile(r"[a-z0-9]+")
 
@@ -225,9 +236,15 @@ def _score_item(item: NewsItem) -> int:
     return score
 
 
+def _us_ai_trio_priority(item: NewsItem) -> int:
+    words = _normalized_words(f"{item.title} {item.summary} {item.source}")
+    normalized_text = f" {' '.join(words)} "
+    return int(any(_matches_keyword(term, words, normalized_text) for term in US_AI_TRIO_TERMS))
+
+
 def rank_items(items: Iterable[NewsItem], limit: int = 10) -> list[NewsItem]:
     return sorted(
         items,
-        key=lambda news: (_score_item(news), news.published_utc()),
+        key=lambda news: (_us_ai_trio_priority(news), _score_item(news), news.published_utc()),
         reverse=True,
     )[:limit]
