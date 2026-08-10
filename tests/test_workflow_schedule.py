@@ -28,6 +28,16 @@ def test_daily_workflow_can_be_smoke_tested_by_workflow_push():
     assert "report_date:" in workflow
 
 
+def test_daily_workflow_can_dry_run_without_sending_or_marking_email():
+    workflow = Path(".github/workflows/daily-ai-news.yml").read_text(encoding="utf-8")
+
+    assert "dry_run:" in workflow
+    assert "DRY_RUN: ${{ inputs.dry_run || 'false' }}" in workflow
+    assert "inputs.dry_run != true" in workflow
+    assert "name: Mark email sent" in workflow
+    assert "name: Commit report" in workflow
+
+
 def test_daily_workflow_skips_only_after_email_sent_marker_exists():
     workflow = Path(".github/workflows/daily-ai-news.yml").read_text(encoding="utf-8")
 

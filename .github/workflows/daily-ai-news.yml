@@ -20,6 +20,11 @@ on:
         description: Beijing report date formatted as YYYY-MM-DD.
         required: false
         type: string
+      dry_run:
+        description: Generate the report without sending email, marking sent, or committing reports.
+        required: false
+        default: false
+        type: boolean
 
 permissions:
   contents: write
@@ -92,6 +97,7 @@ jobs:
           AI_BASE_URL: https://generativelanguage.googleapis.com/v1beta/openai
           AI_MODEL: gemini-3.6-flash
           AI_API_STYLE: chat_completions
+          DRY_RUN: ${{ inputs.dry_run || 'false' }}
           MAIL_HOST: ${{ secrets.MAIL_HOST || 'smtp.163.com' }}
           MAIL_PORT: ${{ secrets.MAIL_PORT || '465' }}
           MAIL_USERNAME: ${{ secrets.MAIL_USERNAME }}
@@ -103,11 +109,12 @@ jobs:
         run: python -m ai_news.main --report-date "${{ steps.trigger_context.outputs.report_date }}"
 
       - name: Mark email sent
-        if: github.event_name == 'workflow_dispatch' || steps.email_marker.outputs.exists != 'true'
+        if: (github.event_name == 'workflow_dispatch' && inputs.dry_run != true) || (github.event_name != 'workflow_dispatch' && steps.email_marker.outputs.exists != 'true')
         run: |
           touch "${{ steps.email_marker.outputs.path }}"
 
       - name: Commit report
+        if: github.event_name != 'workflow_dispatch' || inputs.dry_run != true
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
