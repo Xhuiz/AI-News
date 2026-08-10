@@ -23,7 +23,6 @@ on:
 
 permissions:
   contents: write
-  models: read
 
 concurrency:
   group: daily-ai-news-${{ github.ref }}
@@ -89,9 +88,9 @@ jobs:
       - name: Generate and email daily report
         if: github.event_name == 'workflow_dispatch' || steps.email_marker.outputs.exists != 'true'
         env:
-          AI_API_KEY: ${{ secrets.GITHUB_TOKEN }}
-          AI_BASE_URL: https://models.github.ai/inference
-          AI_MODEL: openai/gpt-4o-mini
+          AI_API_KEY: ${{ secrets.GEMINI_API_KEY || secrets.AI_API_KEY }}
+          AI_BASE_URL: https://generativelanguage.googleapis.com/v1beta/openai
+          AI_MODEL: gemini-3.6-flash
           AI_API_STYLE: chat_completions
           MAIL_HOST: ${{ secrets.MAIL_HOST || 'smtp.163.com' }}
           MAIL_PORT: ${{ secrets.MAIL_PORT || '465' }}

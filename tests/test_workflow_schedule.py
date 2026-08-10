@@ -81,13 +81,13 @@ def test_daily_workflow_syncs_before_pushing_reports():
     assert "git push\n" not in workflow
 
 
-def test_daily_workflow_uses_github_models_free_default():
+def test_daily_workflow_uses_gemini_free_default():
     workflow = Path(".github/workflows/daily-ai-news.yml").read_text(encoding="utf-8")
 
-    assert "models: read" in workflow
-    assert "AI_API_KEY: ${{ secrets.GITHUB_TOKEN }}" in workflow
-    assert "AI_BASE_URL: https://models.github.ai/inference" in workflow
-    assert "AI_MODEL: openai/gpt-4o-mini" in workflow
+    assert "models: read" not in workflow
+    assert "AI_API_KEY: ${{ secrets.GEMINI_API_KEY || secrets.AI_API_KEY }}" in workflow
+    assert "AI_BASE_URL: https://generativelanguage.googleapis.com/v1beta/openai" in workflow
+    assert "AI_MODEL: gemini-3.6-flash" in workflow
     assert "AI_API_STYLE: chat_completions" in workflow
 
 
