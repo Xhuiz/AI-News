@@ -8,6 +8,10 @@ import requests
 from .config import AppConfig
 from .models import NewsItem
 
+DEFAULT_REQUEST_TIMEOUT_SECONDS = 90
+BIGMODEL_GLM_REQUEST_TIMEOUT_SECONDS = 180
+CHAT_COMPLETIONS_MAX_TOKENS = 3000
+
 
 class SummarizerError(RuntimeError):
     """Raised when the AI service cannot produce a usable report."""
@@ -115,12 +119,18 @@ def _chat_completions_url(base_url: str) -> str:
     return normalized + "/chat/completions"
 
 
-def _should_disable_bigmodel_thinking(config: AppConfig) -> bool:
+def _is_bigmodel_glm(config: AppConfig) -> bool:
     base_url = config.ai_base_url.lower()
     model = config.ai_model.lower()
     return model.startswith("glm-") and (
         "bigmodel.cn" in base_url or "api.z.ai" in base_url
     )
+
+
+def _request_timeout_seconds(config: AppConfig) -> int:
+    if _is_bigmodel_glm(config):
+        return BIGMODEL_GLM_REQUEST_TIMEOUT_SECONDS
+    return DEFAULT_REQUEST_TIMEOUT_SECONDS
 
 
 def _extract_output_text(data: dict) -> str:
@@ -190,8 +200,9 @@ def summarize_news(
                 {"role": "user", "content": prompt},
             ],
             "temperature": 0.3,
+            "max_tokens": CHAT_COMPLETIONS_MAX_TOKENS,
         }
-        if _should_disable_bigmodel_thinking(config):
+        if _is_bigmodel_glm(config):
             payload["thinking"] = {"type": "disabled"}
         extract_markdown = _extract_chat_completion_text
     else:
@@ -208,7 +219,7 @@ def summarize_news(
                 "Content-Type": "application/json",
             },
             json=payload,
-            timeout=90,
+            timeout=_request_timeout_seconds(config),
         )
         response.raise_for_status()
         data = response.json()

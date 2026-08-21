@@ -96,7 +96,7 @@ def test_daily_workflow_uses_zhipu_free_default():
 
     assert "models: read" not in workflow
     assert "AI_API_KEY: ${{ secrets.ZHIPU_API_KEY || secrets.AI_API_KEY }}" in workflow
-    assert "AI_BASE_URL: https://api.z.ai/api/paas/v4" in workflow
+    assert "AI_BASE_URL: https://open.bigmodel.cn/api/paas/v4" in workflow
     assert "AI_MODEL: glm-4.7-flash" in workflow
     assert "AI_API_STYLE: chat_completions" in workflow
 

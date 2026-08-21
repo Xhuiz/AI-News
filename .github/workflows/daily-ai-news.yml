@@ -94,7 +94,7 @@ jobs:
         if: github.event_name == 'workflow_dispatch' || steps.email_marker.outputs.exists != 'true'
         env:
           AI_API_KEY: ${{ secrets.ZHIPU_API_KEY || secrets.AI_API_KEY }}
-          AI_BASE_URL: https://api.z.ai/api/paas/v4
+          AI_BASE_URL: https://open.bigmodel.cn/api/paas/v4
           AI_MODEL: glm-4.7-flash
           AI_API_STYLE: chat_completions
           DRY_RUN: ${{ inputs.dry_run || 'false' }}

@@ -223,7 +223,7 @@ def test_summarize_news_calls_chat_completions_api():
 def test_summarize_news_disables_bigmodel_glm_thinking_for_daily_report():
     cfg = replace(
         config(),
-        ai_base_url="https://api.z.ai/api/paas/v4",
+        ai_base_url="https://open.bigmodel.cn/api/paas/v4",
         ai_model="glm-4.7-flash",
         ai_api_style="chat_completions",
     )
@@ -238,6 +238,7 @@ def test_summarize_news_disables_bigmodel_glm_thinking_for_daily_report():
 
     def fake_post(url, headers, json, timeout):
         captured["json"] = json
+        captured["timeout"] = timeout
         return FakeResponse()
 
     summarize_news(
@@ -250,6 +251,8 @@ def test_summarize_news_disables_bigmodel_glm_thinking_for_daily_report():
     )
 
     assert captured["json"]["thinking"] == {"type": "disabled"}
+    assert captured["json"]["max_tokens"] == 3000
+    assert captured["timeout"] == 180
 
 
 def test_summarize_news_wraps_network_errors():
