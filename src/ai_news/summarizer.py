@@ -11,6 +11,7 @@ from .models import NewsItem
 DEFAULT_REQUEST_TIMEOUT_SECONDS = 90
 BIGMODEL_GLM_REQUEST_TIMEOUT_SECONDS = 180
 CHAT_COMPLETIONS_MAX_TOKENS = 3000
+BIGMODEL_GLM_FALLBACK_MODELS = ("glm-4-flash-250414",)
 
 
 class SummarizerError(RuntimeError):
@@ -119,18 +120,58 @@ def _chat_completions_url(base_url: str) -> str:
     return normalized + "/chat/completions"
 
 
-def _is_bigmodel_glm(config: AppConfig) -> bool:
-    base_url = config.ai_base_url.lower()
-    model = config.ai_model.lower()
+def _is_bigmodel_glm_model(base_url: str, model: str) -> bool:
+    base_url = base_url.lower()
+    model = model.lower()
     return model.startswith("glm-") and (
         "bigmodel.cn" in base_url or "api.z.ai" in base_url
     )
 
 
-def _request_timeout_seconds(config: AppConfig) -> int:
-    if _is_bigmodel_glm(config):
+def _is_bigmodel_glm(config: AppConfig) -> bool:
+    return _is_bigmodel_glm_model(config.ai_base_url, config.ai_model)
+
+
+def _request_timeout_seconds(config: AppConfig, model: str | None = None) -> int:
+    selected_model = model or config.ai_model
+    if _is_bigmodel_glm_model(config.ai_base_url, selected_model):
         return BIGMODEL_GLM_REQUEST_TIMEOUT_SECONDS
     return DEFAULT_REQUEST_TIMEOUT_SECONDS
+
+
+def _candidate_models(config: AppConfig) -> list[str]:
+    models = [config.ai_model]
+    if _is_bigmodel_glm(config):
+        models.extend(
+            model for model in BIGMODEL_GLM_FALLBACK_MODELS if model != config.ai_model
+        )
+    return models
+
+
+def _is_retryable_bigmodel_error(error: Exception, response: object | None) -> bool:
+    if isinstance(error, requests.Timeout):
+        return True
+
+    if getattr(response, "status_code", None) == 429:
+        return True
+
+    text = getattr(response, "text", "")
+    return isinstance(text, str) and ("1305" in text or "访问量过大" in text)
+
+
+def _chat_completions_payload(config: AppConfig, model: str, prompt: str) -> dict:
+    payload = {
+        "model": model,
+        "messages": [
+            {"role": "system", "content": CHAT_COMPLETIONS_SYSTEM_MESSAGE},
+            {"role": "user", "content": prompt},
+        ],
+        "temperature": 0.3,
+        "max_tokens": CHAT_COMPLETIONS_MAX_TOKENS,
+    }
+    if _is_bigmodel_glm_model(config.ai_base_url, model):
+        payload["thinking"] = {"type": "disabled"}
+    return payload
 
 
 def _extract_output_text(data: dict) -> str:
@@ -191,55 +232,61 @@ def summarize_news(
             "temperature": 0.3,
         }
         extract_markdown = _extract_output_text
+        model_candidates = [config.ai_model]
     elif config.ai_api_style == "chat_completions":
         url = _chat_completions_url(config.ai_base_url)
-        payload = {
-            "model": config.ai_model,
-            "messages": [
-                {"role": "system", "content": CHAT_COMPLETIONS_SYSTEM_MESSAGE},
-                {"role": "user", "content": prompt},
-            ],
-            "temperature": 0.3,
-            "max_tokens": CHAT_COMPLETIONS_MAX_TOKENS,
-        }
-        if _is_bigmodel_glm(config):
-            payload["thinking"] = {"type": "disabled"}
         extract_markdown = _extract_chat_completion_text
+        model_candidates = _candidate_models(config)
     else:
         raise SummarizerError(
             f"Unsupported AI_API_STYLE={config.ai_api_style}. "
             "This project currently supports responses and chat_completions."
         )
 
-    try:
-        response = post(
-            url,
-            headers={
-                "Authorization": f"Bearer {config.ai_api_key}",
-                "Content-Type": "application/json",
-            },
-            json=payload,
-            timeout=_request_timeout_seconds(config),
-        )
-        response.raise_for_status()
-        data = response.json()
-    except Exception as exc:
-        response_obj = locals().get("response")
-        raise SummarizerError(
-            _request_error_message(
-                model=config.ai_model,
-                url=url,
-                api_key=config.ai_api_key,
-                error=exc,
-                response=response_obj,
-            )
-        ) from exc
+    for index, model in enumerate(model_candidates):
+        if config.ai_api_style == "chat_completions":
+            payload = _chat_completions_payload(config, model, prompt)
+        else:
+            payload = {**payload, "model": model}
 
-    markdown = extract_markdown(data)
-    if not markdown:
-        raise SummarizerError(
-            "AI service returned an empty report; "
-            f"model={config.ai_model}; url={url}; raw_response="
-            + _redact(json.dumps(data, ensure_ascii=False), config.ai_api_key)[:1000]
-        )
-    return markdown
+        response = None
+        try:
+            response = post(
+                url,
+                headers={
+                    "Authorization": f"Bearer {config.ai_api_key}",
+                    "Content-Type": "application/json",
+                },
+                json=payload,
+                timeout=_request_timeout_seconds(config, model),
+            )
+            response.raise_for_status()
+            data = response.json()
+        except Exception as exc:
+            can_retry = (
+                index < len(model_candidates) - 1
+                and _is_bigmodel_glm_model(config.ai_base_url, model)
+                and _is_retryable_bigmodel_error(exc, response)
+            )
+            if can_retry:
+                continue
+            raise SummarizerError(
+                _request_error_message(
+                    model=model,
+                    url=url,
+                    api_key=config.ai_api_key,
+                    error=exc,
+                    response=response,
+                )
+            ) from exc
+
+        markdown = extract_markdown(data)
+        if not markdown:
+            raise SummarizerError(
+                "AI service returned an empty report; "
+                f"model={model}; url={url}; raw_response="
+                + _redact(json.dumps(data, ensure_ascii=False), config.ai_api_key)[:1000]
+            )
+        return markdown
+
+    raise SummarizerError("AI service returned no response.")

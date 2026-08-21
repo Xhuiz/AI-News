@@ -255,6 +255,48 @@ def test_summarize_news_disables_bigmodel_glm_thinking_for_daily_report():
     assert captured["timeout"] == 180
 
 
+def test_summarize_news_retries_busy_bigmodel_with_free_fallback():
+    cfg = replace(
+        config(),
+        ai_base_url="https://open.bigmodel.cn/api/paas/v4",
+        ai_model="glm-4.7-flash",
+        ai_api_style="chat_completions",
+    )
+    requested_models = []
+
+    class BusyResponse:
+        text = '{"error":{"code":"1305","message":"该模型当前访问量过大，请您稍后再试"}}'
+        status_code = 429
+
+        def raise_for_status(self):
+            raise requests.HTTPError("429 Client Error: Too Many Requests")
+
+    class SuccessResponse:
+        def raise_for_status(self):
+            return None
+
+        def json(self):
+            return {"choices": [{"message": {"content": "# 每日 AI 新闻简报"}}]}
+
+    def fake_post(url, headers, json, timeout):
+        requested_models.append(json["model"])
+        if len(requested_models) == 1:
+            return BusyResponse()
+        return SuccessResponse()
+
+    markdown = summarize_news(
+        cfg,
+        [news_item()],
+        "2026-08-21",
+        expanded_window=False,
+        news_api_used=False,
+        post=fake_post,
+    )
+
+    assert requested_models == ["glm-4.7-flash", "glm-4-flash-250414"]
+    assert markdown == "# 每日 AI 新闻简报"
+
+
 def test_summarize_news_wraps_network_errors():
     cfg = config()
 
