@@ -150,8 +150,13 @@ def run(
             expanded_window,
             news_api_used,
         )
-    except SummarizerError:
-        print("AI 总结服务暂时不可用；已生成中文自动模板简报。", file=sys.stderr)
+    except SummarizerError as exc:
+        print(
+            "AI 总结服务暂时不可用；"
+            f"原因：{_redact_secrets(str(exc), config)}；"
+            "已生成中文自动模板简报。",
+            file=sys.stderr,
+        )
         markdown = build_fallback_report(
             ranked_items,
             report_date,

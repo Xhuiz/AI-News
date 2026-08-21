@@ -156,6 +156,7 @@ def test_run_sends_fallback_report_when_ai_summary_fails(tmp_path, capsys):
     assert "GitHub Models retirement brownout" in markdown
     assert "https://example.com/github-models-brownout" in markdown
     assert "AI 总结服务暂时不可用" in captured.err
+    assert "github_models_retirement_brownout" in captured.err
     assert "ai-key" not in captured.err
 
 
