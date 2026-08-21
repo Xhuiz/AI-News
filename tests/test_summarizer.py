@@ -220,6 +220,38 @@ def test_summarize_news_calls_chat_completions_api():
     assert markdown == "# Daily AI News\n\n- Test"
 
 
+def test_summarize_news_disables_bigmodel_glm_thinking_for_daily_report():
+    cfg = replace(
+        config(),
+        ai_base_url="https://api.z.ai/api/paas/v4",
+        ai_model="glm-4.7-flash",
+        ai_api_style="chat_completions",
+    )
+    captured = {}
+
+    class FakeResponse:
+        def raise_for_status(self):
+            return None
+
+        def json(self):
+            return {"choices": [{"message": {"content": "# 每日 AI 新闻简报"}}]}
+
+    def fake_post(url, headers, json, timeout):
+        captured["json"] = json
+        return FakeResponse()
+
+    summarize_news(
+        cfg,
+        [news_item()],
+        "2026-08-21",
+        expanded_window=False,
+        news_api_used=False,
+        post=fake_post,
+    )
+
+    assert captured["json"]["thinking"] == {"type": "disabled"}
+
+
 def test_summarize_news_wraps_network_errors():
     cfg = config()
 

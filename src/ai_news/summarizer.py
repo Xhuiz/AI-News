@@ -115,6 +115,14 @@ def _chat_completions_url(base_url: str) -> str:
     return normalized + "/chat/completions"
 
 
+def _should_disable_bigmodel_thinking(config: AppConfig) -> bool:
+    base_url = config.ai_base_url.lower()
+    model = config.ai_model.lower()
+    return model.startswith("glm-") and (
+        "bigmodel.cn" in base_url or "api.z.ai" in base_url
+    )
+
+
 def _extract_output_text(data: dict) -> str:
     if isinstance(data.get("output_text"), str):
         return data["output_text"].strip()
@@ -183,6 +191,8 @@ def summarize_news(
             ],
             "temperature": 0.3,
         }
+        if _should_disable_bigmodel_thinking(config):
+            payload["thinking"] = {"type": "disabled"}
         extract_markdown = _extract_chat_completion_text
     else:
         raise SummarizerError(
