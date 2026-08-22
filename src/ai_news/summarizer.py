@@ -12,6 +12,7 @@ DEFAULT_REQUEST_TIMEOUT_SECONDS = 90
 BIGMODEL_GLM_REQUEST_TIMEOUT_SECONDS = 180
 CHAT_COMPLETIONS_MAX_TOKENS = 3000
 BIGMODEL_GLM_FALLBACK_MODELS = ("glm-4-flash-250414",)
+_MARKDOWN_FENCE_LANGUAGES = {"", "markdown", "md"}
 
 
 class SummarizerError(RuntimeError):
@@ -207,6 +208,23 @@ def _extract_chat_completion_text(data: dict) -> str:
     return ""
 
 
+def _strip_outer_markdown_fence(markdown: str) -> str:
+    lines = markdown.strip().splitlines()
+    if len(lines) < 2:
+        return markdown.strip()
+
+    first_line = lines[0].strip().lower()
+    last_line = lines[-1].strip()
+    if not first_line.startswith("```") or last_line != "```":
+        return markdown.strip()
+
+    language = first_line[3:].strip()
+    if language not in _MARKDOWN_FENCE_LANGUAGES:
+        return markdown.strip()
+
+    return "\n".join(lines[1:-1]).strip()
+
+
 CHAT_COMPLETIONS_SYSTEM_MESSAGE = (
     "你是中文 AI 新闻简报编辑。必须使用简体中文输出完整 Markdown 报告，"
     "即使新闻标题、摘要或来源是英文，也要翻译并解释成中文。"
@@ -287,6 +305,6 @@ def summarize_news(
                 f"model={model}; url={url}; raw_response="
                 + _redact(json.dumps(data, ensure_ascii=False), config.ai_api_key)[:1000]
             )
-        return markdown
+        return _strip_outer_markdown_fence(markdown)
 
     raise SummarizerError("AI service returned no response.")

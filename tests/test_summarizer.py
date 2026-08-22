@@ -297,6 +297,38 @@ def test_summarize_news_retries_busy_bigmodel_with_free_fallback():
     assert markdown == "# 每日 AI 新闻简报"
 
 
+def test_summarize_news_strips_outer_markdown_code_fence():
+    class FakeResponse:
+        def raise_for_status(self):
+            return None
+
+        def json(self):
+            return {
+                "output_text": (
+                    "```markdown\n"
+                    "# 每日 AI 新闻简报\n\n"
+                    "## 代码示例\n"
+                    "```python\n"
+                    "print('keep inner fence')\n"
+                    "```\n"
+                    "```"
+                )
+            }
+
+    markdown = summarize_news(
+        config(),
+        [news_item()],
+        "2026-08-22",
+        expanded_window=False,
+        news_api_used=False,
+        post=lambda *args, **kwargs: FakeResponse(),
+    )
+
+    assert markdown.startswith("# 每日 AI 新闻简报")
+    assert not markdown.startswith("```markdown")
+    assert "```python\nprint('keep inner fence')\n```" in markdown
+
+
 def test_summarize_news_wraps_network_errors():
     cfg = config()
 
